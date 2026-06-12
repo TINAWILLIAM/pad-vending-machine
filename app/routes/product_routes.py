@@ -17,7 +17,7 @@ def _to_response(doc: dict, stock: int = 0) -> ProductResponse:
     return ProductResponse(
         id=str(doc["_id"]),
         name=doc["name"],
-        pad_type=doc["pad_type"],
+        pad_type=str(doc["pad_type"]).lower(),
         description=doc.get("description"),
         price=doc["price"],
         image_url=doc.get("image_url"),
