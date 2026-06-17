@@ -2,7 +2,7 @@
 config.py – centralised settings loaded from .env
 """
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, Field, AliasChoices
 from typing import List
 from functools import lru_cache
 
@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     # ── Email (SMTP) ───────────────────────────────────────────
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_USERNAME: str = Field("", validation_alias=AliasChoices("SMTP_USERNAME", "EMAIL_USERNAME"))
+    SMTP_PASSWORD: str = Field("", validation_alias=AliasChoices("SMTP_PASSWORD", "EMAIL_PASSWORD"))
     FROM_EMAIL: str = ""
     FROM_NAME: str = "Pad Vending Machine"
 

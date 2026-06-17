@@ -78,13 +78,16 @@ async def send_otp_email(email: str, otp: str) -> None:
     msg.attach(MIMEText(_otp_email_body(otp, email), "html"))
 
     try:
+        use_tls = settings.SMTP_PORT == 465
+        start_tls = settings.SMTP_PORT == 587
         await aiosmtplib.send(
             msg,
             hostname=settings.SMTP_HOST,
             port=settings.SMTP_PORT,
             username=settings.SMTP_USERNAME,
             password=settings.SMTP_PASSWORD,
-            start_tls=True,
+            use_tls=use_tls,
+            start_tls=start_tls,
         )
         logger.info(f"OTP email sent to {email}")
     except Exception as exc:
