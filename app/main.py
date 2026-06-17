@@ -23,6 +23,7 @@ from app.routes.webhook_routes  import router as webhook_router
 from app.routes.machine_routes  import router as machine_router
 from app.routes.iot_routes      import router as iot_router
 from app.routes.location_routes import router as location_router
+from app.routes.support_routes  import router as support_router
 from app.admin.auth import router as admin_auth_router
 from app.admin.dashboard import router as admin_dashboard_router
 from app.admin.customers import router as admin_customers_router
@@ -80,6 +81,7 @@ app.include_router(payment_router)
 app.include_router(webhook_router)
 app.include_router(machine_router)
 app.include_router(iot_router)
+app.include_router(support_router)
 app.include_router(admin_auth_router)
 app.include_router(admin_dashboard_router)
 app.include_router(admin_customers_router)
@@ -107,3 +109,6 @@ async def root():
             "health": "/health",
         }
     )
+
+# Force reload triggers after .env modification - CORS updated
+

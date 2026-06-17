@@ -23,15 +23,16 @@ async def update_location(request: LocationUpdateRequest):
     Called after OTP verification if the user grants location access.
     Returns the nearest vending machine.
     """
-    machine = await get_nearest_machine(request.latitude, request.longitude)
-    if not machine:
+    nearest_machine = await get_nearest_machine(request.latitude, request.longitude)
+    if not nearest_machine:
         return {"nearest_machine": None, "message": "No machines available near you."}
 
+    print("Nearest machine:", nearest_machine["name"])
     logger.info(
         f"User {request.user_id} at ({request.latitude},{request.longitude}) → "
-        f"nearest machine: {machine.get('machine_code')} ({machine.get('distance_km')} km)"
+        f"nearest machine: {nearest_machine.get('machine_code')} ({nearest_machine.get('distance_km')} km)"
     )
-    return {"nearest_machine": machine}
+    return {"nearest_machine": nearest_machine}
 
 
 @router.get("/nearest-machine", summary="Get nearest machine by lat/lon query params")

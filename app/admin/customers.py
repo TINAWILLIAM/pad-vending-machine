@@ -22,12 +22,21 @@ async def _enrich_customer(user_doc: dict) -> dict:
     orders_col = get_collection("orders")
 
     pipeline = [
-        {"$match": {"user_id": user_id, "status": "COMPLETED"}},
+        {
+            "$match": {
+                "$or": [
+                    {"user_id": user_id},
+                    {"user_id": user_doc.get("email", "")}
+                ],
+                "status": {"$in": ["COMPLETED", "completed", "Dispensed", "dispensed"]},
+                "payment_method": {"$ne": "COIN"}
+            }
+        },
         {
             "$group": {
                 "_id": None,
                 "total_orders": {"$sum": 1},
-                "total_spend": {"$sum": "$total_amount"},
+                "total_spend": {"$sum": {"$ifNull": ["$total_amount", "$total_price"]}},
                 "last_purchase": {"$max": "$completed_at"},
             }
         },
@@ -107,12 +116,12 @@ async def list_customers(
     rev_pipeline = [
         {
             "$match": {
-                "status": "COMPLETED",
+                "status": {"$in": ["COMPLETED", "completed", "Dispensed", "dispensed"]},
                 "payment_method": {"$ne": "COIN"},
                 "completed_at": {"$gte": this_month_start},
             }
         },
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+        {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$total_amount", "$total_price"]}}}},
     ]
     rev_result = await orders_col.aggregate(rev_pipeline).to_list(1)
     rev_this = rev_result[0]["total"] if rev_result else 0.0
@@ -120,12 +129,12 @@ async def list_customers(
     rev_pipeline_last = [
         {
             "$match": {
-                "status": "COMPLETED",
+                "status": {"$in": ["COMPLETED", "completed", "Dispensed", "dispensed"]},
                 "payment_method": {"$ne": "COIN"},
                 "completed_at": {"$gte": last_month_start, "$lt": last_month_end},
             }
         },
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+        {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$total_amount", "$total_price"]}}}},
     ]
     rev_last_result = await orders_col.aggregate(rev_pipeline_last).to_list(1)
     rev_last = rev_last_result[0]["total"] if rev_last_result else 0.0
@@ -171,7 +180,14 @@ async def get_customer(
 
     # Full order history
     orders_col = get_collection("orders")
-    cursor = orders_col.find({"user_id": customer_id}).sort("created_at", -1).limit(20)
+    user_email = doc.get("email", "")
+    cursor = orders_col.find({
+        "$or": [
+            {"user_id": customer_id},
+            {"user_id": str(doc["_id"])},
+            {"user_id": user_email}
+        ]
+    }).sort("created_at", -1).limit(20)
     orders = []
     async for o in cursor:
         orders.append({
@@ -185,3 +201,22 @@ async def get_customer(
         })
 
     return {**profile, "order_history": orders}
+
+
+@router.post("/customers/{customer_id}/toggle-status", summary="Toggle customer active status")
+async def toggle_customer_status(
+    customer_id: str,
+    _: dict = Depends(require_admin_token),
+):
+    col = get_collection("users")
+    try:
+        doc = await col.find_one({"_id": ObjectId(customer_id)})
+    except Exception:
+        doc = await col.find_one({"email": customer_id})
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Customer not found.")
+
+    new_status = not doc.get("is_active", True)
+    await col.update_one({"_id": doc["_id"]}, {"$set": {"is_active": new_status}})
+    return {"success": True, "is_active": new_status}

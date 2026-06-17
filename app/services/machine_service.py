@@ -98,17 +98,38 @@ async def update_stock(machine_id: str, data: StockUpdate) -> dict:
 async def deduct_stock(machine_id: str, items: list[dict]) -> None:
     """Decrement stock for each dispensed item. Called after successful dispense."""
     col = get_collection("machines")
+    try:
+        filt = {"_id": ObjectId(machine_id)}
+    except Exception:
+        filt = {"machine_code": machine_id}
+
+    machine = await col.find_one(filt)
+    if not machine:
+        logger.error(f"[STOCK DEDUCTION ERROR] Machine not found for ID/code: {machine_id}")
+        return
+
+    current_stock = machine.get("stock", {})
     update_ops: dict = {}
+    
+    logger.info(f"[STOCK DEDUCTION] Starting deduction for machine: {machine.get('name')} (id/code: {machine_id})")
+    
     for item in items:
         product_id = item["product_id"]
         qty = item["quantity"]
-        update_ops[f"stock.{product_id}"] = -qty
+        stock_before = current_stock.get(product_id, 0)
+        
+        logger.info(f"  - Product {product_id}: Stock Before = {stock_before}, Quantity Dispensed = {qty}")
+        
+        new_qty = max(0, stock_before - qty)
+        update_ops[f"stock.{product_id}"] = new_qty
+        
+        logger.info(f"  - Product {product_id}: Stock After (calculated) = {new_qty}")
 
     await col.update_one(
-        {"_id": ObjectId(machine_id)},
-        {"$inc": update_ops, "$set": {"updated_at": datetime.utcnow()}},
+        {"_id": machine["_id"]},
+        {"$set": {**update_ops, "updated_at": datetime.utcnow()}}
     )
-    logger.info(f"Stock deducted for machine {machine_id}: {items}")
+    logger.info(f"[STOCK DEDUCTION SUCCESS] Stock updated successfully for machine {machine_id}")
 
 
 async def get_nearest_machine(lat: float, lon: float) -> Optional[dict]:

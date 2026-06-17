@@ -23,9 +23,7 @@ async def create_order(data: OrderCreate) -> dict:
     if not machine:
         raise ValueError("Machine not found.")
 
-    duplicate = await check_duplicate_order(data.user_id, data.machine_id, data.items)
-    if duplicate:
-        return duplicate
+    await check_duplicate_order(data.user_id, data.machine_id)
 
     total_amount = sum(item.price * item.quantity for item in data.items)
 
@@ -187,7 +185,7 @@ async def execute_vend(order_id: str) -> dict:
             },
         )
 
-        logger.info(f"Order {order_id} completed successfully.")
+        logger.info(f"[VEND SUCCESS] Order {order_id} completed successfully. Status set to: {OrderStatus.COMPLETED.value}")
         return {
             "success": True,
             "message": "Items dispensed successfully!",
@@ -205,7 +203,7 @@ async def execute_vend(order_id: str) -> dict:
         },
     )
 
-    logger.warning(f"Order {order_id} dispense failed: {result.get('message')}")
+    logger.warning(f"[VEND FAILURE] Order {order_id} dispense failed: {result.get('message')}. Status set to: {OrderStatus.FAILED_DISPENSE.value}")
     return {
         "success": False,
         "message": result.get("message", "Dispense failed. Please retry."),

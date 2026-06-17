@@ -120,14 +120,14 @@ async def _build_product_response(doc: dict, machine_filter: Optional[str] = Non
 @router.get("/products", summary="List all products with stock and sales analytics")
 async def admin_list_products(
     machine_id: Optional[str] = Query(None),
-    pad_type: Optional[str] = Query(None, description="Filter: regular | medium | xl | xxl"),
+    pad_type: Optional[str] = Query(None, description="Filter: regular | xl | xxl"),
     sort_by: Optional[str] = Query(
         None, description="quantity_asc | quantity_desc | sales_desc"
     ),
     _: dict = Depends(require_admin_token),
 ):
     col = get_collection("products")
-    query: dict = {}
+    query: dict = {"is_active": True}
     if pad_type:
         query["pad_type"] = pad_type.lower()
 
@@ -157,40 +157,96 @@ async def admin_create_product(
     _: dict = Depends(require_admin_token),
 ):
     now = datetime.utcnow()
-    doc = {
-        "name": data.name,
-        "pad_type": data.pad_type,
-        "category": data.category or data.pad_type,
-        "description": data.description,
-        "price": data.price,
-        "image_url": data.image_url,
-        "is_active": True,
-        "created_at": now,
-        "updated_at": now,
-    }
     col = get_collection("products")
-    result = await col.insert_one(doc)
-    product_id = str(result.inserted_id)
-
-    # Set initial stock on the specified machine
-    if data.initial_stock > 0:
+    
+    # Normalize inputs
+    name_norm = data.name.strip()
+    pad_type_norm = data.pad_type.strip().lower()
+    
+    # Check if a product with the same brand name and category (pad_type) already exists
+    existing_product = await col.find_one({
+        "name": {"$regex": f"^{name_norm}$", "$options": "i"},
+        "pad_type": pad_type_norm
+    })
+    
+    if existing_product:
+        product_id = str(existing_product["_id"])
+        
+        # Update existing record metadata
+        update_fields = {
+            "price": data.price,
+            "is_active": True,
+            "updated_at": now
+        }
+        if data.description:
+            update_fields["description"] = data.description
+        if data.image_url:
+            update_fields["image_url"] = data.image_url
+            
+        await col.update_one({"_id": existing_product["_id"]}, {"$set": update_fields})
+        
+        # Increment stock on the specified machine
         machines_col = get_collection("machines")
         try:
             filt = {"_id": ObjectId(data.machine_id)}
         except Exception:
             filt = {"machine_code": data.machine_id}
+            
+        machine = await machines_col.find_one(filt)
+        if not machine:
+            raise HTTPException(status_code=404, detail="Machine not found.")
+            
+        current_stock = machine.get("stock", {}).get(product_id, 0)
+        new_stock = current_stock + data.initial_stock
+        
         await machines_col.update_one(
-            filt,
+            {"_id": machine["_id"]},
             {
                 "$set": {
-                    f"stock.{product_id}": data.initial_stock,
-                    "updated_at": now,
+                    f"stock.{product_id}": new_stock,
+                    "updated_at": now
                 }
-            },
+            }
         )
-
-    doc["_id"] = result.inserted_id
-    return await _build_product_response(doc)
+        
+        updated_doc = await col.find_one({"_id": existing_product["_id"]})
+        return await _build_product_response(updated_doc, machine_filter=data.machine_id)
+        
+    else:
+        # Create a new product
+        doc = {
+            "name": name_norm,
+            "pad_type": pad_type_norm,
+            "category": data.category or pad_type_norm,
+            "description": data.description,
+            "price": data.price,
+            "image_url": data.image_url,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now,
+        }
+        result = await col.insert_one(doc)
+        product_id = str(result.inserted_id)
+        
+        # Set initial stock on the specified machine
+        if data.initial_stock > 0:
+            machines_col = get_collection("machines")
+            try:
+                filt = {"_id": ObjectId(data.machine_id)}
+            except Exception:
+                filt = {"machine_code": data.machine_id}
+            await machines_col.update_one(
+                filt,
+                {
+                    "$set": {
+                        f"stock.{product_id}": data.initial_stock,
+                        "updated_at": now,
+                    }
+                },
+            )
+            
+        doc["_id"] = result.inserted_id
+        return await _build_product_response(doc, machine_filter=data.machine_id)
 
 
 @router.patch("/products/{product_id}", summary="Update product metadata")

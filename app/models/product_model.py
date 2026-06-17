@@ -9,7 +9,6 @@ from enum import Enum
 
 class PadType(str, Enum):
     REGULAR = "regular"
-    MEDIUM = "medium"
     XL = "xl"
     XXL = "xxl"
 

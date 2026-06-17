@@ -40,6 +40,23 @@ async def send_dispense_command(
     Returns {"success": True/False, "message": "..."}.
     If the machine is unreachable the command is queued.
     """
+    if settings.DEBUG:
+        m_code = machine_doc.get("machine_code", "")
+        m_status = machine_doc.get("status", "")
+        if m_status == "online":
+            logger.info(f"[ESP32 SIMULATION] Simulating dispense SUCCESS for online machine {m_code}")
+            return {"success": True, "message": "Simulated dispense successful!"}
+        else:
+            logger.warning(f"[ESP32 SIMULATION] Simulating dispense FAILURE for machine {m_code} (Status: {m_status})")
+            payload = {
+                "command": "dispense",
+                "order_id": order_id,
+                "items": items,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            await _queue_dispense_command(machine_doc["_id"], order_id, items, payload)
+            return {"success": False, "message": "Simulated hardware error: Machine is not online."}
+
     endpoint = _resolve_esp32_endpoint(machine_doc)
 
     payload = {

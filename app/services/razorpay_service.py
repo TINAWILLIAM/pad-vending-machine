@@ -34,6 +34,16 @@ async def create_razorpay_order(amount_inr: float, receipt: str, notes: dict | N
         return order
     except Exception as exc:
         logger.error(f"Razorpay order creation failed: {exc}")
+        if settings.DEBUG:
+            logger.info("Settings DEBUG is True. Generating mock Razorpay order.")
+            import uuid
+            return {
+                "id": f"order_{uuid.uuid4().hex[:14]}",
+                "amount": amount_paise,
+                "currency": "INR",
+                "receipt": receipt,
+                "status": "created"
+            }
         raise
 
 

@@ -10,6 +10,18 @@ _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
 
 
+async def _normalize_seeded_products() -> None:
+    """Normalize seeded product names to 'Whisper' to avoid duplication with category names."""
+    db = get_db()
+    p_col = db["products"]
+    cursor = p_col.find({})
+    async for doc in cursor:
+        name = doc.get("name", "")
+        if name in ("Regular Pad", "XL Pad", "XXL Pad") or name.lower().endswith("pad"):
+            await p_col.update_one({"_id": doc["_id"]}, {"$set": {"name": "Whisper"}})
+            logger.info(f"Normalized product name to Whisper for category {doc.get('pad_type')}")
+
+
 async def connect_db() -> None:
     """Called once on application startup."""
     global _client, _db
@@ -22,6 +34,7 @@ async def connect_db() -> None:
     logger.info(f"Connected to MongoDB database: {settings.DB_NAME}")
 
     await _create_indexes()
+    await _normalize_seeded_products()
 
 
 async def close_db() -> None:
@@ -73,5 +86,9 @@ async def _create_indexes() -> None:
     await db["coin_transactions"].create_index("machine_id")
     await db["coin_transactions"].create_index("created_at")
     await db["coin_transactions"].create_index("status")
+
+    # Support Tickets
+    await db["support_tickets"].create_index("user_id")
+    await db["support_tickets"].create_index("created_at")
 
     logger.info("MongoDB indexes verified / created.")

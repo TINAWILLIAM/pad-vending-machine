@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # ── Admin ─────────────────────────────────────────────────
     ADMIN_SECRET: str = "admin123"
     ADMIN_URL: str = "http://localhost:4200"
+    ADMIN_EMAIL: str = "admin@forher.com"
+    ADMIN_PASSWORD: str = "admin123"
+    ADMIN_SECRET_KEY: str = "strong_admin_secret_key"
 
     ALLOWED_ORIGINS: str = "http://localhost:4200,http://localhost:3000"
 
