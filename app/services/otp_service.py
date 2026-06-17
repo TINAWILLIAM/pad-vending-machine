@@ -5,9 +5,7 @@ import random
 import string
 from datetime import datetime, timedelta
 
-import aiosmtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import resend
 
 from app.config import settings
 from app.database import get_collection
@@ -69,29 +67,26 @@ async def generate_and_store_otp(email: str) -> str:
 
 
 async def send_otp_email(email: str, otp: str) -> None:
-    """Send the OTP to the given email address via SMTP."""
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Your Pad Vending OTP"
-    msg["From"] = f"{settings.FROM_NAME} <{settings.FROM_EMAIL}>"
-    msg["To"] = email
+    """Send the OTP to the given email address via Resend API."""
+    if not settings.RESEND_API_KEY:
+        logger.error("RESEND_API_KEY is not configured in settings")
+        raise ValueError("Email service is temporarily unavailable due to missing credentials.")
 
-    msg.attach(MIMEText(_otp_email_body(otp, email), "html"))
+    resend.api_key = settings.RESEND_API_KEY
+    
+    params = {
+        "from": f"{settings.FROM_NAME} <{settings.FROM_EMAIL}>",
+        "to": [email],
+        "subject": "Your Pad Vending OTP",
+        "html": _otp_email_body(otp, email),
+    }
 
     try:
-        use_tls = settings.SMTP_PORT == 465
-        start_tls = settings.SMTP_PORT == 587
-        await aiosmtplib.send(
-            msg,
-            hostname=settings.SMTP_HOST,
-            port=settings.SMTP_PORT,
-            username=settings.SMTP_USERNAME,
-            password=settings.SMTP_PASSWORD,
-            use_tls=use_tls,
-            start_tls=start_tls,
-        )
-        logger.info(f"OTP email sent to {email}")
+        # Use the Resend async counterpart
+        email_res = await resend.Emails.send_async(params)
+        logger.info(f"OTP email sent to {email} via Resend. Response: {email_res}")
     except Exception as exc:
-        logger.error(f"Failed to send OTP email to {email}: {exc}")
+        logger.error(f"Failed to send OTP email to {email} via Resend: {exc}")
         raise
 
 

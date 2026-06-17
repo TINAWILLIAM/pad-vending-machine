@@ -72,20 +72,18 @@ async def send_otp(request: SendOTPRequest):
             }
 
         otp = await generate_and_store_otp(request.email)
-        if settings.TEST_MODE:
-            # Remove TEST_MODE before final production
-            logger.info(f"[TEST_MODE] OTP generated for {request.email}: {otp}")
-            return {
-                "already_verified": False,
-                "message": "OTP generated (TEST_MODE active).",
-                "test_otp": otp
-            }
         await send_otp_email(request.email, otp)
+    except ValueError as exc:
+        logger.error(f"send-otp configuration failure for {request.email}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
     except Exception as exc:
         logger.error(f"send-otp failed for {request.email}: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP. Please try again.",
+            detail="Failed to send OTP email. Please try again.",
         )
     return {
         "already_verified": False,

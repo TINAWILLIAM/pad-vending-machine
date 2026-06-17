@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     APP_NAME: str = "Pad Vending Machine API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    TEST_MODE: bool = False
 
     # ── MongoDB ────────────────────────────────────────────────
     MONGO_URI: str = "mongodb://localhost:27017"
@@ -26,11 +25,8 @@ class Settings(BaseSettings):
     # ── OTP ────────────────────────────────────────────────────
     OTP_EXPIRE_MINUTES: int = 10
 
-    # ── Email (SMTP) ───────────────────────────────────────────
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str = Field("", validation_alias=AliasChoices("SMTP_USERNAME", "EMAIL_USERNAME"))
-    SMTP_PASSWORD: str = Field("", validation_alias=AliasChoices("SMTP_PASSWORD", "EMAIL_PASSWORD"))
+    # ── Email (Resend) ─────────────────────────────────────────
+    RESEND_API_KEY: str = ""
     FROM_EMAIL: str = ""
     FROM_NAME: str = "Pad Vending Machine"
 
