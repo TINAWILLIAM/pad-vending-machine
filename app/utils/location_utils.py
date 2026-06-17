@@ -31,8 +31,8 @@ def find_nearest_machine(user_lat: float, user_lon: float, machines: list[dict[s
 
     for machine in machines:
         loc = machine.get("location", {})
-        m_lat = loc.get("latitude")
-        m_lon = loc.get("longitude")
+        m_lat = machine.get("latitude") or loc.get("latitude")
+        m_lon = machine.get("longitude") or loc.get("longitude")
         if m_lat is None or m_lon is None:
             continue
         dist = haversine_distance_km(user_lat, user_lon, m_lat, m_lon)

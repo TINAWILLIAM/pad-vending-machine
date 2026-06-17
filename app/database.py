@@ -1,6 +1,4 @@
-"""
-database.py – Motor (async MongoDB) client and collection helpers
-"""
+from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.config import settings
 from app.utils.logger import logger
@@ -8,6 +6,183 @@ from app.utils.logger import logger
 # ── Module-level client ────────────────────────────────────────────────────────
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
+
+PRODUCTS_TO_SEED = [
+    {
+        "name": "Whisper",
+        "pad_type": "regular",
+        "description": "Standard sanitary pad – suitable for light flow.",
+        "price": 10.0,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    },
+    {
+        "name": "Whisper",
+        "pad_type": "xl",
+        "description": "Extra-long sanitary pad – suitable for heavy flow.",
+        "price": 15.0,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    },
+    {
+        "name": "Whisper",
+        "pad_type": "xxl",
+        "description": "Maximum protection, long lasting.",
+        "price": 20.0,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    },
+]
+
+
+async def _seed_if_empty() -> None:
+    db = get_db()
+    machine_count = await db["machines"].count_documents({})
+    if machine_count > 0:
+        logger.info(f"Machines collection is not empty ({machine_count} records found). Skipping auto-seeding.")
+        return
+
+    logger.info("Machines collection is empty. Starting auto-seeding for Kristu Jayanti campus...")
+    
+    p_col = db["products"]
+    product_count = await p_col.count_documents({})
+    product_ids = []
+    
+    if product_count == 0:
+        logger.info("Products collection is empty. Seeding default products...")
+        for p in PRODUCTS_TO_SEED:
+            res = await p_col.insert_one(p.copy())
+            product_ids.append(str(res.inserted_id))
+    else:
+        async for doc in p_col.find({}):
+            product_ids.append(str(doc["_id"]))
+            
+    if not product_ids:
+        product_ids = ["regular_id", "xl_id", "xxl_id"]
+        
+    m_col = db["machines"]
+    
+    seeded_machines = [
+        {
+            "machine_code": "UTIL-001",
+            "name": "Utility Block Machine",
+            "machine_name": "Utility Block Machine",
+            "block_name": "Utility Block",
+            "latitude": 13.0581,
+            "longitude": 77.6426,
+            "location": {
+                "latitude": 13.0581,
+                "longitude": 77.6426,
+                "address": "Utility Block, Ground Floor",
+            },
+            "is_active": True,
+            "is_online": True,
+            "status": "online",
+            "stock": {pid: 50 for pid in product_ids},
+            "esp32_ip": "192.168.1.101",
+            "esp32_endpoint": None,
+            "last_seen": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        },
+        {
+            "machine_code": "MAIN-001",
+            "name": "Main Block Machine",
+            "machine_name": "Main Block Machine",
+            "block_name": "Main Block",
+            "latitude": 13.0585,
+            "longitude": 77.6424,
+            "location": {
+                "latitude": 13.0585,
+                "longitude": 77.6424,
+                "address": "Main Block, Reception Area",
+            },
+            "is_active": True,
+            "is_online": True,
+            "status": "online",
+            "stock": {pid: 50 for pid in product_ids},
+            "esp32_ip": "192.168.1.102",
+            "esp32_endpoint": None,
+            "last_seen": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        },
+        {
+            "machine_code": "PG-001",
+            "name": "PG Block Machine",
+            "machine_name": "PG Block Machine",
+            "block_name": "PG Block",
+            "latitude": 13.0590,
+            "longitude": 77.6428,
+            "location": {
+                "latitude": 13.0590,
+                "longitude": 77.6428,
+                "address": "PG Block, Ground Floor Lounge",
+            },
+            "is_active": True,
+            "is_online": True,
+            "status": "online",
+            "stock": {pid: 50 for pid in product_ids},
+            "esp32_ip": "192.168.1.103",
+            "esp32_endpoint": None,
+            "last_seen": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        },
+        {
+            "machine_code": "ADMIN-001",
+            "name": "Admin Block Machine",
+            "machine_name": "Admin Block Machine",
+            "block_name": "Admin Block",
+            "latitude": 13.0583,
+            "longitude": 77.6427,
+            "location": {
+                "latitude": 13.0583,
+                "longitude": 77.6427,
+                "address": "Admin Block, Ground Floor Lobby",
+            },
+            "is_active": True,
+            "is_online": True,
+            "status": "online",
+            "stock": {pid: 50 for pid in product_ids},
+            "esp32_ip": "192.168.1.104",
+            "esp32_endpoint": None,
+            "last_seen": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        },
+        {
+            "machine_code": "HUM-001",
+            "name": "Humanities Block Machine",
+            "machine_name": "Humanities Block Machine",
+            "block_name": "Humanities Block",
+            "latitude": 13.0594,
+            "longitude": 77.6431,
+            "location": {
+                "latitude": 13.0594,
+                "longitude": 77.6431,
+                "address": "Humanities Block, Corridor",
+            },
+            "is_active": True,
+            "is_online": True,
+            "status": "online",
+            "stock": {pid: 50 for pid in product_ids},
+            "esp32_ip": "192.168.1.105",
+            "esp32_endpoint": None,
+            "last_seen": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        },
+    ]
+    
+    for m in seeded_machines:
+        await m_col.insert_one(m)
+        logger.info(f"Seeded machine: {m['machine_name']}")
+    
+    logger.info("Auto-seeding complete.")
 
 
 async def _normalize_seeded_products() -> None:
@@ -35,6 +210,7 @@ async def connect_db() -> None:
 
     await _create_indexes()
     await _normalize_seeded_products()
+    await _seed_if_empty()
 
 
 async def close_db() -> None:

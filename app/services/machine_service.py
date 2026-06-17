@@ -51,7 +51,7 @@ async def get_machine_by_id(machine_id: str) -> Optional[dict]:
 
 async def get_all_machines() -> list[dict]:
     col = get_collection("machines")
-    cursor = col.find({})
+    cursor = col.find({"is_active": {"$ne": False}})
     machines = []
     async for doc in cursor:
         machines.append(_to_response(doc))
