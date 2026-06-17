@@ -72,6 +72,14 @@ async def send_otp(request: SendOTPRequest):
             }
 
         otp = await generate_and_store_otp(request.email)
+        if settings.TEST_MODE:
+            # Remove TEST_MODE before final production
+            logger.info(f"[TEST_MODE] OTP generated for {request.email}: {otp}")
+            return {
+                "already_verified": False,
+                "message": "OTP generated (TEST_MODE active).",
+                "test_otp": otp
+            }
         await send_otp_email(request.email, otp)
     except Exception as exc:
         logger.error(f"send-otp failed for {request.email}: {exc}")

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Pad Vending Machine API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    TEST_MODE: bool = False
 
     # ── MongoDB ────────────────────────────────────────────────
     MONGO_URI: str = "mongodb://localhost:27017"
