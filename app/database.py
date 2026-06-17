@@ -81,7 +81,7 @@ async def _seed_if_empty() -> None:
             "is_active": True,
             "is_online": True,
             "status": "online",
-            "stock": {pid: 50 for pid in product_ids},
+            "stock": {pid: 25 for pid in product_ids},
             "esp32_ip": "192.168.1.101",
             "esp32_endpoint": None,
             "last_seen": datetime.utcnow(),
@@ -103,7 +103,7 @@ async def _seed_if_empty() -> None:
             "is_active": True,
             "is_online": True,
             "status": "online",
-            "stock": {pid: 50 for pid in product_ids},
+            "stock": {pid: 25 for pid in product_ids},
             "esp32_ip": "192.168.1.102",
             "esp32_endpoint": None,
             "last_seen": datetime.utcnow(),
@@ -125,7 +125,7 @@ async def _seed_if_empty() -> None:
             "is_active": True,
             "is_online": True,
             "status": "online",
-            "stock": {pid: 50 for pid in product_ids},
+            "stock": {pid: 25 for pid in product_ids},
             "esp32_ip": "192.168.1.103",
             "esp32_endpoint": None,
             "last_seen": datetime.utcnow(),
@@ -147,7 +147,7 @@ async def _seed_if_empty() -> None:
             "is_active": True,
             "is_online": True,
             "status": "online",
-            "stock": {pid: 50 for pid in product_ids},
+            "stock": {pid: 25 for pid in product_ids},
             "esp32_ip": "192.168.1.104",
             "esp32_endpoint": None,
             "last_seen": datetime.utcnow(),
@@ -169,7 +169,7 @@ async def _seed_if_empty() -> None:
             "is_active": True,
             "is_online": True,
             "status": "online",
-            "stock": {pid: 50 for pid in product_ids},
+            "stock": {pid: 25 for pid in product_ids},
             "esp32_ip": "192.168.1.105",
             "esp32_endpoint": None,
             "last_seen": datetime.utcnow(),
@@ -183,6 +183,30 @@ async def _seed_if_empty() -> None:
         logger.info(f"Seeded machine: {m['machine_name']}")
     
     logger.info("Auto-seeding complete.")
+
+
+async def _initialize_stock_to_25() -> None:
+    """Ensure all machines in MongoDB have a stock of 25 for each active product."""
+    db = get_db()
+    p_col = db["products"]
+    m_col = db["machines"]
+    
+    product_ids = []
+    async for p in p_col.find({"is_active": True}):
+        product_ids.append(str(p["_id"]))
+        
+    if not product_ids:
+        logger.info("No active products found during stock init. Seeding default products...")
+        for p in PRODUCTS_TO_SEED:
+            res = await p_col.insert_one(p.copy())
+            product_ids.append(str(res.inserted_id))
+            
+    stock_dict = {pid: 25 for pid in product_ids}
+    result = await m_col.update_many(
+        {},
+        {"$set": {"stock": stock_dict, "updated_at": datetime.utcnow()}}
+    )
+    logger.info(f"Initialized stock of 25 for {len(product_ids)} products on {result.modified_count} machines in MongoDB.")
 
 
 async def _normalize_seeded_products() -> None:
@@ -211,6 +235,7 @@ async def connect_db() -> None:
     await _create_indexes()
     await _normalize_seeded_products()
     await _seed_if_empty()
+    await _initialize_stock_to_25()
 
 
 async def close_db() -> None:

@@ -52,3 +52,4 @@ class ProductResponse(BaseModel):
     image_url: Optional[str] = None
     is_active: bool
     available_stock: int = 0  # Injected from machine stock at query time
+    stock_by_machine: Optional[dict] = None
