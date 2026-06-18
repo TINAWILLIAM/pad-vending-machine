@@ -5,7 +5,7 @@ import random
 import string
 from datetime import datetime, timedelta
 
-import resend
+import httpx
 
 from app.config import settings
 from app.database import get_collection
@@ -67,26 +67,46 @@ async def generate_and_store_otp(email: str) -> str:
 
 
 async def send_otp_email(email: str, otp: str) -> None:
-    """Send the OTP to the given email address via Resend API."""
-    if not settings.RESEND_API_KEY:
-        logger.error("RESEND_API_KEY is not configured in settings")
+    """Send the OTP to the given email address via Brevo transactional email API."""
+    if not settings.BREVO_API_KEY:
+        logger.error("BREVO_API_KEY is not configured in settings")
         raise ValueError("Email service is temporarily unavailable due to missing credentials.")
 
-    resend.api_key = settings.RESEND_API_KEY
-    
-    params = {
-        "from": f"{settings.FROM_NAME} <{settings.FROM_EMAIL}>",
-        "to": [email],
+    headers = {
+        "accept": "application/json",
+        "api-key": settings.BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+
+    payload = {
+        "sender": {
+            "name": settings.FROM_NAME,
+            "email": settings.FROM_EMAIL
+        },
+        "to": [
+            {
+                "email": email
+            }
+        ],
         "subject": "Your Pad Vending OTP",
-        "html": _otp_email_body(otp, email),
+        "htmlContent": _otp_email_body(otp, email)
     }
 
     try:
-        # Use the Resend async counterpart
-        email_res = await resend.Emails.send_async(params)
-        logger.info(f"OTP email sent to {email} via Resend. Response: {email_res}")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                json=payload,
+                headers=headers
+            )
+            response_json = response.json()
+            if response.status_code >= 400:
+                logger.error(f"Failed to send OTP email to {email} via Brevo. Status: {response.status_code}. Response: {response_json}")
+                raise ValueError(f"Brevo API error: {response_json.get('message', 'Unknown error')}")
+            
+            logger.info(f"OTP email sent to {email} via Brevo. Message ID: {response_json.get('messageId')}")
     except Exception as exc:
-        logger.error(f"Failed to send OTP email to {email} via Resend: {exc}")
+        logger.error(f"Failed to send OTP email to {email} via Brevo: {exc}")
         raise
 
 

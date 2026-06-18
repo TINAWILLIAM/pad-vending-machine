@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     # ── OTP ────────────────────────────────────────────────────
     OTP_EXPIRE_MINUTES: int = 10
 
-    # ── Email (Resend) ─────────────────────────────────────────
-    RESEND_API_KEY: str = ""
-    FROM_EMAIL: str = ""
-    FROM_NAME: str = "Pad Vending Machine"
+    # ── Email (Brevo) ──────────────────────────────────────────
+    BREVO_API_KEY: str = ""
+    FROM_EMAIL: str = "forher.padvending@gmail.com"
+    FROM_NAME: str = "ForHer Pad Vending"
 
     # ── Razorpay ──────────────────────────────────────────────
     RAZORPAY_KEY_ID: str = ""
