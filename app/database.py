@@ -289,7 +289,7 @@ async def _create_indexes() -> None:
     await db["coin_transactions"].create_index("status")
 
     # Support Tickets
-    await db["support_tickets"].create_index("user_id")
-    await db["support_tickets"].create_index("created_at")
+    await db["issue_reports"].create_index("user_id")
+    await db["issue_reports"].create_index("created_at")
 
     logger.info("MongoDB indexes verified / created.")

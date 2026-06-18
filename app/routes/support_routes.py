@@ -41,7 +41,7 @@ async def create_ticket(request: TicketCreateRequest):
     """
     Submit a support ticket complaint. Anyone can do this.
     """
-    col = get_collection("support_tickets")
+    col = get_collection("issue_reports")
     now = datetime.utcnow()
     
     ticket_doc = {
@@ -77,7 +77,7 @@ async def get_tickets(_: dict = Depends(require_admin_token)):
     """
     Admin only: Get all tickets, sorted newest first.
     """
-    col = get_collection("support_tickets")
+    col = get_collection("issue_reports")
     try:
         cursor = col.find({}).sort("created_at", -1)
         tickets = []
@@ -111,7 +111,7 @@ async def update_ticket_status(ticket_id: str, request: TicketStatusUpdateReques
             detail="Invalid ticket ID format."
         )
 
-    col = get_collection("support_tickets")
+    col = get_collection("issue_reports")
     now = datetime.utcnow()
     
     try:
