@@ -11,6 +11,7 @@ import json
 
 from app.database import get_collection
 from app.services.order_service import mark_payment_verified
+from app.models.order_model import OrderStatus
 from app.utils.payment_verification import verify_razorpay_webhook_signature
 from app.utils.logger import logger
 from app.utils.idempotency import check_duplicate_payment
@@ -98,7 +99,7 @@ async def _handle_payment_failed(payload: dict) -> None:
             {"razorpay_order_id": razorpay_order_id},
             {
                 "$set": {
-                    "status": "PAYMENT_FAILED",
+                    "status": OrderStatus.PAYMENT_FAILED.value,
                     "updated_at": datetime.utcnow(),
                 }
             },

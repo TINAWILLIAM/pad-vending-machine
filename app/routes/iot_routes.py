@@ -111,6 +111,19 @@ async def dispense_result(result: DispenseResultUpdate):
     from bson import ObjectId
 
     col = get_collection("orders")
+    order = await col.find_one({"_id": ObjectId(result.order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+
+    current_status = order.get("status")
+
+    if current_status == OrderStatus.COMPLETED:
+        logger.info(f"[IoT] Order {result.order_id} is already COMPLETED. Skipping duplicate status update and stock deduction.")
+        return {"message": "Order already completed."}
+
+    if current_status not in (OrderStatus.DISPENSING, OrderStatus.FAILED_DISPENSE):
+        logger.warning(f"[IoT] Order {result.order_id} status is {current_status}. Dispense result ignored (no stock deduction).")
+        return {"message": f"Order status is {current_status}. Action ignored."}
 
     if result.success:
         items = result.items_dispensed or []

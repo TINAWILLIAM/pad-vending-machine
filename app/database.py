@@ -186,7 +186,7 @@ async def _seed_if_empty() -> None:
 
 
 async def _initialize_stock_to_25() -> None:
-    """Ensure all machines in MongoDB have a stock of 25 for each active product."""
+    """Ensure all machines in MongoDB have stock initialized to 25 for each active product, without overwriting existing stock."""
     db = get_db()
     p_col = db["products"]
     m_col = db["machines"]
@@ -201,12 +201,26 @@ async def _initialize_stock_to_25() -> None:
             res = await p_col.insert_one(p.copy())
             product_ids.append(str(res.inserted_id))
             
-    stock_dict = {pid: 25 for pid in product_ids}
-    result = await m_col.update_many(
-        {},
-        {"$set": {"stock": stock_dict, "updated_at": datetime.utcnow()}}
-    )
-    logger.info(f"Initialized stock of 25 for {len(product_ids)} products on {result.modified_count} machines in MongoDB.")
+    # Check each machine individually and initialize missing stock keys only
+    cursor = m_col.find({})
+    async for machine in cursor:
+        current_stock = machine.get("stock", {})
+        if not isinstance(current_stock, dict):
+            current_stock = {}
+        
+        updated_stock = current_stock.copy()
+        needs_update = False
+        for pid in product_ids:
+            if pid not in updated_stock:
+                updated_stock[pid] = 25
+                needs_update = True
+                
+        if needs_update:
+            await m_col.update_one(
+                {"_id": machine["_id"]},
+                {"$set": {"stock": updated_stock, "updated_at": datetime.utcnow()}}
+            )
+            logger.info(f"Initialized missing stock for machine {machine.get('name') or machine.get('machine_code')}")
 
 
 async def _normalize_seeded_products() -> None:

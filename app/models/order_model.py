@@ -15,6 +15,7 @@ class OrderStatus(str, Enum):
     FAILED_DISPENSE = "FAILED_DISPENSE"
     REFUNDED = "REFUNDED"
     CANCELLED = "CANCELLED"
+    PAYMENT_FAILED = "PAYMENT_FAILED"
 
 
 class PaymentStatus(str, Enum):

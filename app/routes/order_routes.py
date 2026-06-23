@@ -56,7 +56,14 @@ async def vend_now(request: VendNowRequest):
     try:
         result = await execute_vend(request.order_id)
     except ValueError as exc:
+        logger.warning(f"Vend validation failed: {exc}")
         raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Unexpected error during vend: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to complete dispensing right now. Please retry or contact support."
+        )
 
     if not result["success"]:
         raise HTTPException(status_code=503, detail=result["message"])

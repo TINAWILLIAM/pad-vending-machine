@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from jose import jwt
+from bson import ObjectId
 
 from app.config import settings
 from app.database import get_collection
@@ -13,6 +14,22 @@ from app.models.user_model import TokenResponse, UserResponse
 from app.utils.logger import logger
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.get("/verify-user/{user_id}", summary="Verify if a user exists by ID")
+async def verify_user_endpoint(user_id: str):
+    """
+    Check if a customer user document exists in MongoDB with the given user_id.
+    """
+    try:
+        col = get_collection("users")
+        user = await col.find_one({"_id": ObjectId(user_id)})
+        if user:
+            return {"exists": True, "user_id": user_id}
+    except Exception:
+        pass
+    return {"exists": False, "user_id": user_id}
+
 
 
 # ── Request / response schemas ─────────────────────────────────────────────────

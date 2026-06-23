@@ -15,13 +15,14 @@ from app.admin.dependencies import require_admin_token
 router = APIRouter(prefix="/admin", tags=["Admin – Dashboard"])
 
 
-def _pct_change(current: float, previous: float) -> str:
-    """Return a signed percentage string e.g. '+12.5%' or '-8.3%' or 'New'."""
+def _pct_change(current: float, previous: float) -> str | None:
+    """Return a signed percentage string e.g. '+12.5%' or '-8.3%' or None if not applicable."""
     if previous == 0:
-        return "New" if current > 0 else "0.0%"
+        return None
     change = ((current - previous) / previous) * 100
     sign = "+" if change >= 0 else ""
     return f"{sign}{change:.1f}%"
+
 
 
 async def _revenue_for_period(start: datetime = None, end: datetime = None) -> float:

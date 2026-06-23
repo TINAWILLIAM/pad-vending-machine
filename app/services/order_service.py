@@ -23,7 +23,18 @@ async def create_order(data: OrderCreate) -> dict:
     if not machine:
         raise ValueError("Machine not found.")
 
+    # Verify user exists in users collection
+    users_col = get_collection("users")
+    try:
+        user_exists = await users_col.find_one({"_id": ObjectId(data.user_id)})
+    except Exception:
+        user_exists = None
+
+    if not user_exists:
+        raise ValueError("User session expired. Please login again.")
+
     await check_duplicate_order(data.user_id, data.machine_id)
+
 
     total_amount = sum(item.price * item.quantity for item in data.items)
 
@@ -130,12 +141,36 @@ async def execute_vend(order_id: str) -> dict:
     if not order:
         raise ValueError("Order not found.")
 
-    if order["status"] not in (OrderStatus.PAYMENT_VERIFIED, OrderStatus.FAILED_DISPENSE):
+    if not order.get("items"):
+        raise ValueError("Order has no items to vend.")
+
+    if order["status"] not in (OrderStatus.PAYMENT_VERIFIED, OrderStatus.FAILED_DISPENSE, OrderStatus.DISPENSING):
         raise ValueError(f"Order is not ready to vend. Current status: {order['status']}")
 
-    machine = await get_machine_by_id(order["machine_id"])
-    if not machine:
-        raise ValueError("Machine not found.")
+    col_m = get_collection("machines")
+    machine_raw = None
+    try:
+        machine_raw = await col_m.find_one({"_id": ObjectId(order["machine_id"])})
+    except Exception:
+        machine_raw = await col_m.find_one({"machine_code": order["machine_id"]})
+
+    if not machine_raw:
+        # Fallback: look up by name stored in the order
+        machine_name = order.get("machine_name")
+        if machine_name:
+            machine_raw = await col_m.find_one({"name": machine_name})
+            if machine_raw:
+                # Update order's machine_id in DB and in-memory
+                new_machine_id = str(machine_raw["_id"])
+                order["machine_id"] = new_machine_id
+                col_o = get_collection("orders")
+                await col_o.update_one(
+                    {"_id": ObjectId(order_id)},
+                    {"$set": {"machine_id": new_machine_id}}
+                )
+
+    if not machine_raw:
+        raise ValueError("Machine not found. Please contact support or select machine again.")
 
     items = [
         {
@@ -156,10 +191,6 @@ async def execute_vend(order_id: str) -> dict:
                 "updated_at": datetime.utcnow(),
             },
         },
-    )
-
-    machine_raw = await get_collection("machines").find_one(
-        {"_id": ObjectId(order["machine_id"])}
     )
 
     result = await send_dispense_command(machine_raw, order_id, items)

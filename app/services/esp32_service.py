@@ -147,3 +147,34 @@ async def process_pending_commands(machine_doc: dict) -> None:
             {"_id": cmd["_id"]},
             {"$set": {"status": new_status, "last_attempt_at": datetime.utcnow()}},
         )
+
+        if result["success"]:
+            from app.models.order_model import OrderStatus
+            from app.services.machine_service import deduct_stock
+            from bson import ObjectId
+
+            orders_col = get_collection("orders")
+            order = await orders_col.find_one({"_id": ObjectId(cmd["order_id"])})
+            if order and order.get("status") != OrderStatus.COMPLETED:
+                # Deduct stock
+                await deduct_stock(machine_id, cmd["items"])
+
+                # Update order status to COMPLETED
+                await orders_col.update_one(
+                    {"_id": ObjectId(cmd["order_id"])},
+                    {
+                        "$set": {
+                            "status": OrderStatus.COMPLETED,
+                            "completed_at": datetime.utcnow(),
+                            "updated_at": datetime.utcnow(),
+                        }
+                    }
+                )
+
+                # Increment sales volume for products
+                products_col = get_collection("products")
+                for item in cmd["items"]:
+                    await products_col.update_one(
+                        {"_id": ObjectId(item["product_id"])},
+                        {"$inc": {"sales_volume": item["quantity"]}}
+                    )

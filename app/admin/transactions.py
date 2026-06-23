@@ -22,7 +22,7 @@ def _map_status(db_status: str) -> str:
         return "Paid"
     elif db_status == "COMPLETED":
         return "Dispensed"
-    elif db_status == "FAILED_DISPENSE":
+    elif db_status in ("FAILED_DISPENSE", "PAYMENT_FAILED"):
         return "Failed"
     elif db_status in ("CANCELLED", "REFUNDED"):
         return "Cancelled"
